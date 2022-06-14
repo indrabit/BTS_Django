@@ -1,4 +1,6 @@
 
+from dataclasses import field, fields
+from pyexpat import model
 from rest_framework.authtoken.models import Token
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
@@ -6,21 +8,16 @@ from rest_framework.validators import UniqueValidator
 
 
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.contrib.auth.password_validation import validate_password
 from django.contrib import auth
 from django.contrib.auth import authenticate
 from .models import User
 
 from django.utils.encoding import smart_str, force_str, smart_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from rest_framework import status
+from rest_framework.response import Response
 
-
-class ChangePasswordSerializer(serializers.Serializer):
-    model=User
-    """
-    Serializer for password change endpoint.
-    """
-    old_password = serializers.CharField(required=True)
-    new_password = serializers.CharField(required=True)
     
 class ResetPasswordEmailRequestSerializer(serializers.Serializer):
     email=serializers.EmailField(min_length=2)
@@ -58,4 +55,20 @@ class SetNewPasswordSerializer(serializers.Serializer):
         except Exception as e:
             raise AuthenticationFailed('The reset link is invalid', 401)
         return super().validate(attrs)
+
+class PasswordSerializer(serializers.Serializer):
+    """
+    Serializer for password change endpoint.
+    """
+    userid=serializers.IntegerField()
+    password_new=serializers.CharField()
+    password_old=serializers.CharField()
+
+    def create(self, validated_data):
+        pass
+    def update(self, instance, validated_data):
+        pass
     
+
+
+

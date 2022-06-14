@@ -24,7 +24,7 @@ class SchoolSerializer(serializers.ModelSerializer):
 			'accountno',
 		]
 
-class PersonSerializer(serializers.ModelSerializer):
+class FamilySerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Family
 		fields = [

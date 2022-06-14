@@ -4,12 +4,13 @@ from django.db import connection
 from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.authtoken.models import Token
-
+from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework import status,generics
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from .serializer import ChangePasswordSerializer,ResetPasswordEmailRequestSerializer,SetNewPasswordSerializer
+from .serializer import ResetPasswordEmailRequestSerializer,SetNewPasswordSerializer,PasswordSerializer
 
 from .models import User
 from datetime import datetime
@@ -92,49 +93,15 @@ def create(request):
     username = str(request.data.get('username'))
     first_name = str(request.data.get('first_name'))
     last_name = str(request.data.get('last_name'))
-    mobile = str(request.data.get('mobile'))
-    
-    
-    user = User.objects.create_user(email, password, username,first_name,last_name)
-    
+  
+    # mobile = str(request.data.get('mobile'))
+    user = User.objects.create_user(email, password, username)    
     token, _ = Token.objects.get_or_create(user=user)
     return Response(
         {'token': {token.key}
                      }, status=status.HTTP_201_CREATED)
 
 
-# Change paspword
-class ChangePasswordView(generics.UpdateAPIView):
-    """
-    An endpoint for changing password.
-    """
-    serializer_class=ChangePasswordSerializer
-    model=User
-    permission_classes=(IsAuthenticated,)
-
-    def get_object(self,queryset=None):
-        obj=self.request.user
-        return obj
-
-    def update(self, request, *args, **kwargs):
-        self.object=self.get_object
-        serializer =self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            # Check old password
-            if not self.object.check_password(serializer.data.get("old_password")):
-                return Response({"old_passwword": ["Wrong password ."]},status=status.HTTP_400_BAD_REQUEST)
-            
-            self.object.set_password(serializer.data.get("new_password"))
-            self.object.save()
-            response = {
-                'status': 'success',
-                'code': status.HTTP_200_OK,
-                'message': 'Password updated successfully',
-                'data': []
-            }
-            return Response(response)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class RequestPasswordResetEmailView(generics.GenericAPIView):
     serializer_class = ResetPasswordEmailRequestSerializer
@@ -225,5 +192,44 @@ class SetNewPasswordAPIView(generics.GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response({'success': True, 'message': 'Password reset success'}, status=status.HTTP_200_OK)
-    
-    
+
+# Change paspword
+class PasswordAPIView(APIView):
+    def get_object(self, userid):
+        user = get_object_or_404(User, id=userid)
+        return user
+
+    def put(self, request):
+        serializer = PasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            userid = serializer.data['userid']
+            new_password = serializer.data['password_new']
+            old_password = serializer.data['password_old']
+            print(userid)
+            print(new_password)
+           
+
+            user = self.get_object(userid)
+            old_password_check=user.check_password(old_password)
+            if old_password_check is False:
+                """
+                old password must be remain same
+                """
+                return Response({"old password": ["It should be same as from your last password."]},
+                                status=status.HTTP_400_BAD_REQUEST)
+            
+            new_password = serializer.data['password_new']
+            is_same_as_old = user.check_password(new_password)           
+            if is_same_as_old:
+                """
+                old password and new passwords should not be the same
+                """
+                return Response({"password": ["It should be different from your last password."]},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            user.set_password(new_password)
+            user.save()
+            return Response({'success': True, 'message': 'Password reset success'}, status=status.HTTP_200_OK)
+            # return Response({'success':True},status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
